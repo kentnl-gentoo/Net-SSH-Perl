@@ -1,4 +1,4 @@
-# $Id: DH.pm,v 1.19 2009/01/26 01:00:25 turnstep Exp $
+# $id: dh.pm,v 1.19 2009/01/26 01:00:25 turnstep exp $
 
 package Net::SSH::Perl::Kex::DH;
 use strict;
@@ -13,7 +13,7 @@ use Net::SSH::Perl::Util qw( bitsize );
 use Carp qw( croak );
 use Crypt::DH;
 use Math::Pari;
-use Digest::SHA1 qw( sha1 );
+use Crypt::Digest::SHA1 qw( sha1 );
 use Scalar::Util qw(weaken);
 
 use Net::SSH::Perl::Kex;
@@ -31,9 +31,11 @@ sub exchange {
     my $kex = shift;
     my $ssh = $kex->{ssh};
     my $packet;
-    my $dh = $kex->_dh_new_group;
 
-    $ssh->debug("Entering Diffie-Hellman Group 1 key exchange.");
+    $ssh->debug('Generating new Diffie-Hellman Group ' . $kex->group . ' keys');
+    my $dh = $kex->_dh_new_group();
+
+    $ssh->debug('Entering Diffie-Hellman Group ' . $kex->group . ' key exchange.');
     $packet = $ssh->packet_start(SSH2_MSG_KEXDH_INIT);
     $packet->put_mp_int($dh->pub_key);
     $packet->send;
@@ -100,6 +102,17 @@ sub kex_hash {
     sha1($b->bytes);
 }
 
+sub derive_key {
+    my($kex, $id, $need, $hash, $shared_secret, $session_id) = @_;
+    my $b = Net::SSH::Perl::Buffer->new( MP => 'SSH2' );
+    $b->put_mp_int($shared_secret);
+    my $digest = sha1($b->bytes, $hash, chr($id), $session_id);
+    for (my $have = 20; $need > $have; $have += 20) {
+        $digest .= sha1($b->bytes, $hash, $digest);
+    }
+    $digest;
+}
+
 sub _pub_is_valid {
     my($dh, $dh_pub) = @_;
     return if $dh_pub < 0;
@@ -115,7 +128,7 @@ sub _pub_is_valid {
 }
 
 sub _gen_key {
-	my $key = shift;
+    my $kex = shift;
     my $dh = shift;
     my $tries = 0;
     {
@@ -134,17 +147,17 @@ Net::SSH::Perl::Kex::DH - Diffie-Hellman Group Agnostic Key Exchange
 
 =head1 SYNOPSIS
 	
-	# This class should not be used directly, but rather as a base for DH1, DH14, etc 
+    # This class should not be used directly, but rather as a base for DH1, DH14, etc 
 
     use Net::SSH::Perl::Kex::DH;
-	use base qw( Net::SSH::Perl::Kex::DH );
+    use base qw( Net::SSH::Perl::Kex::DH );
 
-	# Simply implement _dh_new_group and return the Crypt::DH group
-	sub _dh_new_group {
-		my $kex = shift;
-		...
-		$dh;
-	}
+    # Simply implement _dh_new_group and return the Crypt::DH group
+    sub _dh_new_group {
+        my $kex = shift;
+        ...
+        $dh;
+    }
 
 =head1 DESCRIPTION
 
