@@ -8,15 +8,10 @@ use Net::SSH::Perl::Buffer;
 use Net::SSH::Perl::Packet;
 use Net::SSH::Perl::Constants qw( :msg2 :kex );
 use Net::SSH::Perl::Key;
-use Net::SSH::Perl::Util qw( bitsize );
 
 use Carp qw( croak );
-use Crypt::DH;
-use Math::Pari;
-use Crypt::Digest::SHA1 qw( sha1 );
 use Scalar::Util qw(weaken);
 
-use Net::SSH::Perl::Kex;
 use base qw( Net::SSH::Perl::Kex );
 
 sub new {
@@ -37,7 +32,8 @@ sub exchange {
 
     $ssh->debug('Entering Diffie-Hellman Group ' . $kex->group . ' key exchange.');
     $packet = $ssh->packet_start(SSH2_MSG_KEXDH_INIT);
-    $packet->put_mp_int($dh->pub_key);
+    my $pub_key = $dh->export_key_raw('public');
+    $packet->put_mp_int($pub_key);
     $packet->send;
 
     $ssh->debug("Sent DH public key, waiting for reply.");
@@ -54,11 +50,12 @@ sub exchange {
     my $dh_server_pub = $packet->get_mp_int;
     my $signature = $packet->get_str;
 
-    $ssh->fatal_disconnect("Bad server public DH value")
-        unless _pub_is_valid($dh, $dh_server_pub);
+    my $dh_server_pub_key = Crypt::PK::DH->new;   
+    # create public key object (which will also check the public key for validity)
+    $dh_server_pub_key->import_key_raw($dh_server_pub, 'public', $dh->params2hash);
 
     $ssh->debug("Computing shared secret key.");
-    my $shared_secret = $dh->compute_key($dh_server_pub);
+    my $shared_secret = $dh->shared_secret($dh_server_pub_key);
 
     my $hash = $kex->kex_hash(
         $ssh->client_version_string,
@@ -66,7 +63,7 @@ sub exchange {
         $kex->client_kexinit,
         $kex->server_kexinit,
         $host_key_blob,
-        $dh->pub_key,
+        $pub_key,
         $dh_server_pub,
         $shared_secret);
 
@@ -99,43 +96,18 @@ sub kex_hash {
     $b->put_mp_int($s_dh_pub);
     $b->put_mp_int($shared_secret);
 
-    sha1($b->bytes);
+    $kex->hash($b->bytes);
 }
 
 sub derive_key {
     my($kex, $id, $need, $hash, $shared_secret, $session_id) = @_;
     my $b = Net::SSH::Perl::Buffer->new( MP => 'SSH2' );
     $b->put_mp_int($shared_secret);
-    my $digest = sha1($b->bytes, $hash, chr($id), $session_id);
-    for (my $have = 20; $need > $have; $have += 20) {
-        $digest .= sha1($b->bytes, $hash, $digest);
+    my $digest = $kex->hash($b->bytes, $hash, chr($id), $session_id);
+    for (my $have = $kex->hash_len; $need > $have; $have += $kex->hash_len) {
+        $digest .= $kex->hash($b->bytes, $hash, $digest);
     }
     $digest;
-}
-
-sub _pub_is_valid {
-    my($dh, $dh_pub) = @_;
-    return if $dh_pub < 0;
-
-    my $bits_set = 0;
-    my $n = bitsize($dh_pub);
-    for my $i (0..$n) {
-	$bits_set++ if $dh_pub & (PARI(1) << PARI($i));
-        last if $bits_set > 1;
-    }
-
-    $bits_set > 1 && $dh_pub < $dh->p;
-}
-
-sub _gen_key {
-    my $kex = shift;
-    my $dh = shift;
-    my $tries = 0;
-    {
-	$dh->generate_keys;
-	last if _pub_is_valid($dh, $dh->pub_key);
-	croak "Too many bad keys: giving up" if $tries++ > 10;
-    }
 }
 
 1;
@@ -147,7 +119,8 @@ Net::SSH::Perl::Kex::DH - Diffie-Hellman Group Agnostic Key Exchange
 
 =head1 SYNOPSIS
 	
-    # This class should not be used directly, but rather as a base for DH1, DH14, etc 
+    # This class should not be used directly, but rather as a base for DH1,
+    # DH14SHA1, DH16SHA512, etc 
 
     use Net::SSH::Perl::Kex::DH;
     use base qw( Net::SSH::Perl::Kex::DH );

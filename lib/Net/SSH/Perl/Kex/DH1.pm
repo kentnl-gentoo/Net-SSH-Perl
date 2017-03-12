@@ -6,18 +6,23 @@ use strict;
 use warnings;
 
 use Carp qw( croak );
-use Crypt::DH;
+use Crypt::PK::DH;
+use Crypt::Digest::SHA1 qw( sha1 );
 
 use base qw( Net::SSH::Perl::Kex::DH );
 
 sub group { 1 }
+sub hash_len { 20 }
+
+sub hash {
+    my $kex = shift;
+    sha1(join('',@_));
+}
 
 sub _dh_new_group {
     my $kex = shift;
-    my $dh = Crypt::DH->new;
-    $dh->g(2);
-    $dh->p("0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF");
-    $kex->_gen_key($dh);
+    my $dh = Crypt::PK::DH->new;
+    $dh->generate_key({g => 2, p => 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF'});
     $dh;
 }
 
@@ -27,6 +32,7 @@ __END__
 =head1 NAME
 
 Net::SSH::Perl::Kex::DH1 - Diffie-Hellman Group 1 Key Exchange
+(RFC2409 "Second Oakley Group" 1024-bit)
 
 =head1 SYNOPSIS
 
@@ -47,7 +53,7 @@ to produce a shared secret key between client and server, without
 ever sending the shared secret over the insecure network. All that is
 sent are the client and server public keys.
 
-I<Net::SSH::Perl::Kex::DH1> uses I<Crypt::DH> for the Diffie-Hellman
+I<Net::SSH::Perl::Kex::DH1> uses CryptX for the Diffie-Hellman
 implementation. The I<p> value is set to
 
       FFFFFFFF FFFFFFFF C90FDAA2 2168C234 C4C6628B 80DC1CD1

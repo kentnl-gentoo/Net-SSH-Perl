@@ -13,12 +13,12 @@ require 'test-common.pl';
 use Net::SSH::Perl::Cipher;
 use Test::More;
 
-my $KEY = pack "H64", ("0123456789ABCDEF" x 4);
+my $KEY = pack "H128", ("0123456789ABCDEF" x 8);
 my $PASS = pack "H16", ("0123456789ABCDEF");
 
 my %TESTS;
 BEGIN {
-    %TESTS = (IDEA => 1, DES => 1, Blowfish => 1, DES3 => 1, AES128_CTR => 1, ChachaPoly => 1, None => 1);
+    %TESTS = (IDEA => 1, DES => 1, Blowfish => 1, DES3 => 1, AES256_CTR => 1, AES128_CBC => 1, ChachaPoly => 1, None => 1);
 
     my $num_tests = 0;
     for my $cname (keys %TESTS) {

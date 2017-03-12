@@ -1,5 +1,76 @@
 Revision history for Net::SSH::Perl
 
+2.09 2016.10.26
+    - Fix creation of keys in ecdsa, ed25519 key classes
+    - Update eg/pssh-keygen to create ecdsa, ed25519 keys
+    - Handle hostkeys-00@openssh.com global requests
+    - Add support for 'CheckHostIP' and 'UpdateHostKeys' config options
+    - Refactor handling of '+' syntax in options
+    - Key fingerprints now output sha256-base64 by default.
+      (md5 can be specified with FingerprintHash config option)
+    - Add id_ed25519, id_ecdsa to default identity files
+    - Documentation updates in Perl.pm to reflect new functionality in 2.XX
+
+2.08 2016.10.14
+    - Use sha512 instead of md5 in Net::SSH::Perl::Cipher->new_from_key_str()
+      to provide ChachaPoly with enough key material
+      Tests in t/05-cipher.t should now pass on all platforms [ CPAN bug #114077 ]
+    - Add AES128_CBC to cipher tests
+    - Info on using features not enabled by default added to README
+
+2.07 2016.10.13
+
+    - Fix blowfish compilation on SunOS [CPAN bug #116323]
+    - Fix bug in Packet [CPAN bug #118335]
+    - Add support for '+' syntax in MACs option
+    - Remove hmac-sha1 from default MACs. It can re-enabled 
+      by passing the option: 'MACs +hmac-sha1'
+
+2.06 2016.10.04
+
+    - Add support for additional fixed Diffie-Hellman 2K, 4K and 8K groups
+      from OpenSSH 7.3 (draft-ietf-curdle-ssh-kex-sha2-03)
+    - Kex defaults now updated to draft-ietf-curdle-ssh-kex-sha2-03
+      recommendations (diffie-hellman-group-exchange-sha1 removed)
+      It can re-enabled by passing the option:
+      'KexAlgorithms +diffie-hellman-group-exchange-sha1'
+
+2.05 2016.10.03
+
+    - Add support for '+' syntax in Ciphers, KexAlgorithms, HostKeyAlgorithms
+      options as in OpenSSH
+
+2.04 2016.05.11
+
+    - Add ECDSA key support
+    - Improve extract_public() in Key.pm inspired by
+      https://github.com/renormalist/Net-SSH-Perl/pull/12
+      but implement comment with backwards compat with RSA/DSA datafellows
+    - Fix XS from being loaded more than once (warnings from Net::SFTP)
+
+2.03 2016.05.06
+
+    - Fixes so that "make test" passes
+
+2.02 2016.05.04
+
+    - Use CryptX to further reduce module depedencies
+      This eliminates the need for:
+        Math::Pari
+        Crypt::DH
+        Crypt::RSA
+        Crypt::DSA
+        Crypt::DES
+        Crypt::Blowfish
+        MIME::Base64
+    - Add support for rsa-sha2-512,rsa-sha2-256 signing with RSA keys
+    - Implement HashKnownHosts, KexAlgorithms, MACs config directives
+    - Add XS code for Chacha20, BSD Blowfish, Ed25519 routines
+    - Properly handle and create known_hosts entries when port is specified
+    - Remove obsolete ciphers, MACs, Kex from default list to duplicate 
+      upcoming OpenSSH behavior
+    - Bug fixes
+
 2.01 2016.02.19
 
     - Use CryptX to reduce module depedencies
