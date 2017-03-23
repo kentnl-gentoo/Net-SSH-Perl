@@ -64,7 +64,6 @@ MSG
 }
 
 WriteMakefile(
-    (MM->can('signature_target') ? (SIGN => 1) : ()),
     NAME         => 'Net::SSH::Perl',
     DISTNAME     => 'Net-SSH-Perl',
     VERSION_FROM => 'lib/Net/SSH/Perl.pm',
